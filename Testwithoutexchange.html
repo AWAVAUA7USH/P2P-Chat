@@ -4,51 +4,82 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC Manual Setup Chat</title>
+    <style>
+        #controls {
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
     <h2>WebRTC Chat with Manual Setup</h2>
+    
+    <div id="controls">
+        <label for="peerIp">Peer IP:</label>
+        <input id="peerIp" type="text" placeholder="Enter peer IP" style="width: 200px;"><br>
+        <label for="peerPort">Peer Port:</label>
+        <input id="peerPort" type="text" placeholder="Enter peer Port" style="width: 200px;"><br>
+        <button id="setup">Setup Connection</button>
+    </div>
+    
     <textarea id="messages" readonly style="width: 100%; height: 200px;"></textarea><br>
     <input id="message" type="text" placeholder="Type a message..." style="width: 100%;"><br>
     <button id="send">Send</button>
 
     <script>
-        // Configuration settings for both peers
-        const configuration = {
-            iceServers: []  // No STUN/TURN server needed for local network
-        };
+        let peerConnection;
+        let dataChannel;
 
-        const peerConnection = new RTCPeerConnection(configuration);
+        function createPeerConnection() {
+            const configuration = {
+                iceServers: []  // No STUN/TURN server needed for local network
+            };
 
-        // Predefined ICE candidate for both peers
-        const predefinedIceCandidate = new RTCIceCandidate({
-            candidate: "candidate:1 1 UDP 2122260223 192.168.1.2 12345 typ host",  // Replace with the correct IP and port
-            sdpMid: 'data',
-            sdpMLineIndex: 0
+            peerConnection = new RTCPeerConnection(configuration);
+
+            // Manually add the ICE candidate based on input
+            document.getElementById('setup').addEventListener('click', () => {
+                const peerIp = document.getElementById('peerIp').value;
+                const peerPort = document.getElementById('peerPort').value;
+                
+                if (!peerIp || !peerPort) {
+                    alert('Please enter both IP and Port');
+                    return;
+                }
+
+                const predefinedIceCandidate = new RTCIceCandidate({
+                    candidate: `candidate:1 1 UDP 2122260223 ${peerIp} ${peerPort} typ host`,
+                    sdpMid: 'data',
+                    sdpMLineIndex: 0
+                });
+
+                peerConnection.addIceCandidate(predefinedIceCandidate);
+                setupConnection();  // Set up SDP once ICE candidate is added
+            });
+
+            // Create a DataChannel
+            dataChannel = peerConnection.createDataChannel("chat");
+
+            dataChannel.onopen = () => {
+                console.log('Data channel is open');
+            };
+
+            dataChannel.onmessage = (event) => {
+                const messagesTextarea = document.getElementById('messages');
+                messagesTextarea.value += `Remote: ${event.data}\n`;
+            };
+        }
+
+        document.getElementById('send').addEventListener('click', () => {
+            const message = document.getElementById('message').value;
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(message);
+                document.getElementById('messages').value += `Local: ${message}\n`;
+                document.getElementById('message').value = '';
+            } else {
+                alert('Data channel is not open.');
+            }
         });
 
-        // Manually add the ICE candidate
-        peerConnection.addIceCandidate(predefinedIceCandidate);
-
-        // Create a DataChannel
-        const dataChannel = peerConnection.createDataChannel("chat");
-
-        dataChannel.onopen = () => {
-            console.log('Data channel is open');
-        };
-
-        dataChannel.onmessage = (event) => {
-            const messagesTextarea = document.getElementById('messages');
-            messagesTextarea.value += `Remote: ${event.data}\n`;
-        };
-
-        document.getElementById('send').onclick = () => {
-            const message = document.getElementById('message').value;
-            dataChannel.send(message);
-            document.getElementById('messages').value += `Local: ${message}\n`;
-            document.getElementById('message').value = '';
-        };
-
-        // Manually set local and remote SDP
         async function setupConnection() {
             const sdp = `v=0
 o=- 0 0 IN IP4 127.0.0.1
@@ -60,13 +91,12 @@ a=mid:data
 a=sctpmap:5000 webrtc-datachannel 256
 `; // Minimal SDP, modify as necessary
 
-            // Manually set the SDP for both peers
             await peerConnection.setLocalDescription({ type: 'offer', sdp: sdp });
             await peerConnection.setRemoteDescription({ type: 'answer', sdp: sdp });
         }
 
-        // Start the connection setup
-        setupConnection();
+        // Initialize the peer connection on page load
+        createPeerConnection();
     </script>
 </body>
 </html>
