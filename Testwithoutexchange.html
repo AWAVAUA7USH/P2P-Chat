@@ -3,92 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Manual Setup Chat</title>
-    <style>
-        #controls {
-            margin-bottom: 10px;
-        }
-    </style>
+    <title>LAN WebRTC Chat</title>
 </head>
 <body>
-    <h2>WebRTC Chat with Manual Setup</h2>
-    
-    <div id="controls">
-        <label for="peerIp">Peer IP:</label>
-        <input id="peerIp" type="text" placeholder="Enter peer IP" style="width: 200px;"><br>
-        <button id="setup">Setup Connection</button>
+    <h1>WebRTC LAN Chat</h1>
+
+    <div>
+        <label for="peerA_ip">Your IP Address:</label>
+        <input type="text" id="peerA_ip" placeholder="e.g., 192.168.1.2">
+        <label for="peerA_port">Your Port:</label>
+        <input type="text" id="peerA_port" placeholder="e.g., 12345">
+        <br>
+        <label for="peerB_ip">Peer's IP Address:</label>
+        <input type="text" id="peerB_ip" placeholder="e.g., 192.168.1.3">
+        <label for="peerB_port">Peer's Port:</label>
+        <input type="text" id="peerB_port" placeholder="e.g., 12346">
     </div>
-    
-    <textarea id="messages" readonly style="width: 100%; height: 200px;"></textarea><br>
-    <input id="message" type="text" placeholder="Type a message..." style="width: 100%;"><br>
-    <button id="send">Send</button>
+
+    <br>
+
+    <div>
+        <button id="start">Start Connection</button>
+    </div>
+
+    <br>
+
+    <div>
+        <textarea id="chat" readonly style="width: 100%; height: 300px;"></textarea>
+        <br/>
+        <input type="text" id="message" placeholder="Type your message here" style="width: 100%;">
+        <button id="send">Send</button>
+    </div>
 
     <script>
-        const PORT = 5000; // Hardcoded port number
-        let peerConnection;
-        let dataChannel;
-
-        function createPeerConnection() {
-            const configuration = {
-                iceServers: []  // No STUN/TURN server needed for local network
-            };
-
-            peerConnection = new RTCPeerConnection(configuration);
-
-            // Predefined ICE candidate and SDP setup
-            const peerIp = document.getElementById('peerIp').value;
-            if (!peerIp) {
-                alert('Please enter an IP address');
-                return;
-            }
-
-            const predefinedIceCandidate = new RTCIceCandidate({
-                candidate: `candidate:1 1 UDP 2122260223 ${peerIp} ${PORT} typ host`,
-                sdpMid: 'data',
-                sdpMLineIndex: 0
-            });
-
-            peerConnection.addIceCandidate(predefinedIceCandidate);
-
-            const sdp = `v=0
-o=- 0 0 IN IP4 127.0.0.1
+        // SDP templates with placeholders for IP and port
+        const offerSDPTemplate = `
+v=0
+o=- 2560785542511382727 2 IN IP4 127.0.0.1
 s=-
 t=0 0
-m=application ${PORT} UDP/DTLS/SCTP webrtc-datachannel
-c=IN IP4 127.0.0.1
+a=msid-semantic: WMS
+m=application 9 DTLS/SCTP 5000
+c=IN IP4 {YOUR_IP}
+a=ice-ufrag:F7gI
+a=ice-pwd:x9cml/YzichV2+XlhiMu8g
+a=fingerprint:sha-256 4A:02:F4:B0:A9:18:DA:41:37:AA:E6:DC:14:5C:CB:2D:01:57:5B:0F:34:E0:37:7A:C2:B5:33:5E:1D:DC:3A:74
+a=setup:actpass
 a=mid:data
-a=sctpmap:${PORT} webrtc-datachannel 256
-`;
+a=sctpmap:5000 webrtc-datachannel 1024
+        `.trim();
 
-            peerConnection.setLocalDescription({ type: 'offer', sdp: sdp });
-            peerConnection.setRemoteDescription({ type: 'answer', sdp: sdp });
+        const answerSDPTemplate = `
+v=0
+o=- 1604192128743507888 2 IN IP4 127.0.0.1
+s=-
+t=0 0
+a=msid-semantic: WMS
+m=application 9 DTLS/SCTP 5000
+c=IN IP4 {PEER_IP}
+a=ice-ufrag:F7gI
+a=ice-pwd:x9cml/YzichV2+XlhiMu8g
+a=fingerprint:sha-256 4A:02:F4:B0:A9:18:DA:41:37:AA:E6:DC:14:5C:CB:2D:01:57:5B:0F:34:E0:37:7A:C2:B5:33:5E:1D:DC:3A:74
+a=setup:active
+a=mid:data
+a=sctpmap:5000 webrtc-datachannel 1024
+        `.trim();
 
-            dataChannel = peerConnection.createDataChannel("chat");
+        // Placeholder for ICE Candidates
+        let iceCandidates = [];
 
-            dataChannel.onopen = () => {
-                console.log('Data channel is open');
-            };
+        // Create RTCPeerConnection with no STUN/TURN servers
+        const peerConnectionConfig = {
+            iceServers: []
+        };
 
-            dataChannel.onmessage = (event) => {
-                const messagesTextarea = document.getElementById('messages');
-                messagesTextarea.value += `Remote: ${event.data}\n`;
-            };
+        let peerConnection = new RTCPeerConnection(peerConnectionConfig);
+
+        // Handle ICE Candidate
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                console.log("New ICE candidate: ", event.candidate.candidate);
+            }
+        };
+
+        // Handle Data Channel
+        let dataChannel = peerConnection.createDataChannel("chat");
+
+        // Handle incoming messages
+        dataChannel.onmessage = event => {
+            let chat = document.getElementById('chat');
+            chat.value += `Peer: ${event.data}\n`;
+        };
+
+        // Handle connection state changes
+        peerConnection.onconnectionstatechange = event => {
+            if (peerConnection.connectionState === 'connected') {
+                console.log("Peers connected!");
+            }
+        };
+
+        // Function to replace placeholders with actual IP and port
+        function generateSDP(template, ip) {
+            return template.replace(/{YOUR_IP}/g, ip).replace(/{PEER_IP}/g, ip);
         }
 
-        document.getElementById('setup').addEventListener('click', () => {
-            createPeerConnection();
-        });
+        // Start Connection
+        document.getElementById('start').onclick = () => {
+            const peerA_ip = document.getElementById('peerA_ip').value;
+            const peerA_port = document.getElementById('peerA_port').value;
+            const peerB_ip = document.getElementById('peerB_ip').value;
+            const peerB_port = document.getElementById('peerB_port').value;
 
-        document.getElementById('send').addEventListener('click', () => {
-            const message = document.getElementById('message').value;
-            if (dataChannel && dataChannel.readyState === 'open') {
-                dataChannel.send(message);
-                document.getElementById('messages').value += `Local: ${message}\n`;
-                document.getElementById('message').value = '';
+            if (peerA_ip && peerA_port && peerB_ip && peerB_port) {
+                iceCandidates = [
+                    {
+                        candidate: `candidate:0 1 UDP 2122252543 ${peerA_ip} ${peerA_port} typ host`,
+                        sdpMid: 'data',
+                        sdpMLineIndex: 0
+                    },
+                    {
+                        candidate: `candidate:1 1 UDP 2122252542 ${peerB_ip} ${peerB_port} typ host`,
+                        sdpMid: 'data',
+                        sdpMLineIndex: 0
+                    }
+                ];
+
+                // Add hardcoded ICE candidates
+                iceCandidates.forEach(candidate => {
+                    peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                        .catch(error => console.error("Error adding ICE candidate:", error));
+                });
+
+                // Set SDP depending on peer role
+                if (confirm("Are you the initiator?")) {
+                    const offerSDP = generateSDP(offerSDPTemplate, peerA_ip);
+                    const answerSDP = generateSDP(answerSDPTemplate, peerB_ip);
+
+                    peerConnection.setLocalDescription({ type: 'offer', sdp: offerSDP })
+                        .then(() => {
+                            console.log("Offer SDP set.");
+                            peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSDP })
+                                .then(() => console.log("Answer SDP set."))
+                                .catch(error => console.error("Error setting answer SDP:", error));
+                        })
+                        .catch(error => console.error("Error setting offer SDP:", error));
+                } else {
+                    const answerSDP = generateSDP(answerSDPTemplate, peerA_ip);
+                    const offerSDP = generateSDP(offerSDPTemplate, peerB_ip);
+
+                    peerConnection.setLocalDescription({ type: 'answer', sdp: answerSDP })
+                        .then(() => {
+                            console.log("Answer SDP set.");
+                            peerConnection.setRemoteDescription({ type: 'offer', sdp: offerSDP })
+                                .then(() => console.log("Offer SDP set."))
+                                .catch(error => console.error("Error setting offer SDP:", error));
+                        })
+                        .catch(error => console.error("Error setting answer SDP:", error));
+                }
             } else {
-                alert('Data channel is not open.');
+                alert("Please enter all IPs and Ports.");
             }
-        });
+        };
+
+        // Function to send messages
+        document.getElementById('send').onclick = () => {
+            let messageInput = document.getElementById('message');
+            dataChannel.send(messageInput.value);
+            document.getElementById('chat').value += `You: ${messageInput.value}\n`;
+            messageInput.value = '';
+        };
     </script>
 </body>
 </html>
