@@ -3,28 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LAN WebRTC Chat</title>
+    <title>LAN WebRTC Chat with QR Codes</title>
+    <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.4.0/lib/qr-code-styling.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <style>
+        #qr-code {
+            margin-top: 20px;
+        }
+        #qr-code img {
+            max-width: 100%;
+        }
+    </style>
 </head>
 <body>
-    <h1>WebRTC LAN Chat</h1>
+    <h1>WebRTC LAN Chat with QR Codes</h1>
 
     <div>
-        <label for="peerA_ip">Your IP Address:</label>
-        <input type="text" id="peerA_ip" placeholder="e.g., 192.168.1.2">
-        <label for="peerA_port">Your Port:</label>
-        <input type="text" id="peerA_port" placeholder="e.g., 12345">
-        <br>
-        <label for="peerB_ip">Peer's IP Address:</label>
-        <input type="text" id="peerB_ip" placeholder="e.g., 192.168.1.3">
-        <label for="peerB_port">Peer's Port:</label>
-        <input type="text" id="peerB_port" placeholder="e.g., 12346">
+        <label for="peer_ip">Your IP Address:</label>
+        <input type="text" id="peer_ip" placeholder="e.g., 192.168.1.2">
+        <label for="peer_port">Your Port:</label>
+        <input type="text" id="peer_port" placeholder="e.g., 12345">
     </div>
 
     <br>
 
     <div>
         <button id="start">Start Connection</button>
+        <button id="generateQRCode">Generate QR Code</button>
+        <button id="scanQRCode">Scan QR Code</button>
     </div>
+
+    <br>
+
+    <div id="qr-code"></div>
 
     <br>
 
@@ -36,141 +47,167 @@
     </div>
 
     <script>
-        // SDP templates with placeholders for IP and port
-        const offerSDPTemplate = `
-v=0
-o=- 2560785542511382727 2 IN IP4 127.0.0.1
-s=-
-t=0 0
-a=msid-semantic: WMS
-m=application 9 DTLS/SCTP 5000
-c=IN IP4 {YOUR_IP}
-a=ice-ufrag:F7gI
-a=ice-pwd:x9cml/YzichV2+XlhiMu8g
-a=fingerprint:sha-256 4A:02:F4:B0:A9:18:DA:41:37:AA:E6:DC:14:5C:CB:2D:01:57:5B:0F:34:E0:37:7A:C2:B5:33:5E:1D:DC:3A:74
-a=setup:actpass
-a=mid:data
-a=sctpmap:5000 webrtc-datachannel 1024
-        `.trim();
+        let localConnection;
+        let remoteConnection;
+        let localDataChannel;
+        let remoteDataChannel;
 
-        const answerSDPTemplate = `
-v=0
-o=- 1604192128743507888 2 IN IP4 127.0.0.1
-s=-
-t=0 0
-a=msid-semantic: WMS
-m=application 9 DTLS/SCTP 5000
-c=IN IP4 {PEER_IP}
-a=ice-ufrag:F7gI
-a=ice-pwd:x9cml/YzichV2+XlhiMu8g
-a=fingerprint:sha-256 4A:02:F4:B0:A9:18:DA:41:37:AA:E6:DC:14:5C:CB:2D:01:57:5B:0F:34:E0:37:7A:C2:B5:33:5E:1D:DC:3A:74
-a=setup:active
-a=mid:data
-a=sctpmap:5000 webrtc-datachannel 1024
-        `.trim();
-
-        // Placeholder for ICE Candidates
-        let iceCandidates = [];
-
-        // Create RTCPeerConnection with no STUN/TURN servers
         const peerConnectionConfig = {
             iceServers: []
         };
 
-        let peerConnection = new RTCPeerConnection(peerConnectionConfig);
-
-        // Handle ICE Candidate
-        peerConnection.onicecandidate = event => {
-            if (event.candidate) {
-                console.log("New ICE candidate: ", event.candidate.candidate);
+        const qrCodeStyling = new QRCodeStyling({
+            width: 200,
+            height: 200,
+            type: 'image/jpeg',
+            data: '',
+            image: null,
+            dotsOptions: {
+                color: "#000000",
+                gradient: null,
+                opacity: 1
+            },
+            cornersSquareOptions: {
+                color: "#000000",
+                gradient: null,
+                opacity: 1
+            },
+            cornersDotOptions: {
+                color: "#000000",
+                gradient: null,
+                opacity: 1
             }
-        };
+        });
 
-        // Handle Data Channel
-        let dataChannel = peerConnection.createDataChannel("chat");
+        function setupDataChannel(dataChannel) {
+            dataChannel.onmessage = event => {
+                document.getElementById('chat').value += `Peer: ${event.data}\n`;
+            };
 
-        // Handle incoming messages
-        dataChannel.onmessage = event => {
-            let chat = document.getElementById('chat');
-            chat.value += `Peer: ${event.data}\n`;
-        };
-
-        // Handle connection state changes
-        peerConnection.onconnectionstatechange = event => {
-            if (peerConnection.connectionState === 'connected') {
-                console.log("Peers connected!");
-            }
-        };
-
-        // Function to replace placeholders with actual IP and port
-        function generateSDP(template, ip) {
-            return template.replace(/{YOUR_IP}/g, ip).replace(/{PEER_IP}/g, ip);
+            dataChannel.onopen = () => {
+                document.getElementById('send').onclick = () => {
+                    const messageInput = document.getElementById('message');
+                    dataChannel.send(messageInput.value);
+                    document.getElementById('chat').value += `You: ${messageInput.value}\n`;
+                    messageInput.value = '';
+                };
+            };
         }
 
-        // Start Connection
+        function setupConnection(isInitiator) {
+            localConnection = new RTCPeerConnection(peerConnectionConfig);
+            remoteConnection = new RTCPeerConnection(peerConnectionConfig);
+
+            localConnection.onicecandidate = e => {
+                if (e.candidate) {
+                    remoteConnection.addIceCandidate(e.candidate)
+                        .catch(e => console.error("Error adding ICE candidate to remote connection:", e));
+                }
+            };
+
+            remoteConnection.onicecandidate = e => {
+                if (e.candidate) {
+                    localConnection.addIceCandidate(e.candidate)
+                        .catch(e => console.error("Error adding ICE candidate to local connection:", e));
+                }
+            };
+
+            if (isInitiator) {
+                localDataChannel = localConnection.createDataChannel("chat");
+                setupDataChannel(localDataChannel);
+
+                localConnection.createOffer()
+                    .then(offer => localConnection.setLocalDescription(offer))
+                    .then(() => {
+                        const offer = localConnection.localDescription;
+                        generateQRCode(offer.sdp, "offer");
+                    })
+                    .catch(e => console.error("Error creating offer:", e));
+            } else {
+                remoteConnection.ondatachannel = event => {
+                    localDataChannel = event.channel;
+                    setupDataChannel(localDataChannel);
+                };
+            }
+        }
+
+        function generateQRCode(data, type) {
+            qrCodeStyling.update({ data: JSON.stringify({ type, sdp: data }) });
+            qrCodeStyling.append(document.getElementById('qr-code'));
+        }
+
+        function handleQRCodeData(data) {
+            try {
+                const { type, sdp } = JSON.parse(data);
+                if (type === 'offer') {
+                    localConnection.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }))
+                        .then(() => localConnection.createAnswer())
+                        .then(answer => localConnection.setLocalDescription(answer))
+                        .then(() => remoteConnection.setRemoteDescription(localConnection.localDescription))
+                        .catch(e => console.error("Error handling offer:", e));
+                } else if (type === 'answer') {
+                    remoteConnection.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp }))
+                        .catch(e => console.error("Error setting answer:", e));
+                }
+            } catch (e) {
+                console.error("Error parsing QR code data:", e);
+            }
+        }
+
+        function setupQRCodeScanning() {
+            const html5QrCode = new Html5Qrcode("qr-code");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: 250
+                },
+                (decodedText, decodedResult) => {
+                    handleQRCodeData(decodedText);
+                    html5QrCode.stop();
+                },
+                error => console.error("QR code scanning error:", error)
+            ).catch(error => console.error("Error starting QR code scanner:", error));
+        }
+
         document.getElementById('start').onclick = () => {
-            const peerA_ip = document.getElementById('peerA_ip').value;
-            const peerA_port = document.getElementById('peerA_port').value;
-            const peerB_ip = document.getElementById('peerB_ip').value;
-            const peerB_port = document.getElementById('peerB_port').value;
+            const peer_ip = document.getElementById('peer_ip').value;
+            const peer_port = document.getElementById('peer_port').value;
 
-            if (peerA_ip && peerA_port && peerB_ip && peerB_port) {
-                iceCandidates = [
-                    {
-                        candidate: `candidate:0 1 UDP 2122252543 ${peerA_ip} ${peerA_port} typ host`,
-                        sdpMid: 'data',
-                        sdpMLineIndex: 0
-                    },
-                    {
-                        candidate: `candidate:1 1 UDP 2122252542 ${peerB_ip} ${peerB_port} typ host`,
-                        sdpMid: 'data',
-                        sdpMLineIndex: 0
-                    }
-                ];
-
-                // Add hardcoded ICE candidates
-                iceCandidates.forEach(candidate => {
-                    peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-                        .catch(error => console.error("Error adding ICE candidate:", error));
-                });
-
-                // Set SDP depending on peer role
+            if (peer_ip && peer_port) {
                 if (confirm("Are you the initiator?")) {
-                    const offerSDP = generateSDP(offerSDPTemplate, peerA_ip);
-                    const answerSDP = generateSDP(answerSDPTemplate, peerB_ip);
-
-                    peerConnection.setLocalDescription({ type: 'offer', sdp: offerSDP })
-                        .then(() => {
-                            console.log("Offer SDP set.");
-                            peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSDP })
-                                .then(() => console.log("Answer SDP set."))
-                                .catch(error => console.error("Error setting answer SDP:", error));
-                        })
-                        .catch(error => console.error("Error setting offer SDP:", error));
+                    setupConnection(true);
                 } else {
-                    const answerSDP = generateSDP(answerSDPTemplate, peerA_ip);
-                    const offerSDP = generateSDP(offerSDPTemplate, peerB_ip);
-
-                    peerConnection.setLocalDescription({ type: 'answer', sdp: answerSDP })
-                        .then(() => {
-                            console.log("Answer SDP set.");
-                            peerConnection.setRemoteDescription({ type: 'offer', sdp: offerSDP })
-                                .then(() => console.log("Offer SDP set."))
-                                .catch(error => console.error("Error setting offer SDP:", error));
-                        })
-                        .catch(error => console.error("Error setting answer SDP:", error));
+                    setupConnection(false);
                 }
             } else {
-                alert("Please enter all IPs and Ports.");
+                alert("Please enter IP and Port.");
             }
         };
 
-        // Function to send messages
+        document.getElementById('generateQRCode').onclick = () => {
+            const peer_ip = document.getElementById('peer_ip').value;
+            const peer_port = document.getElementById('peer_port').value;
+            if (localConnection && localConnection.localDescription) {
+                generateQRCode(localConnection.localDescription.sdp, "offer");
+            } else {
+                alert("No SDP to generate QR code.");
+            }
+        };
+
+        document.getElementById('scanQRCode').onclick = () => {
+            setupQRCodeScanning();
+        };
+
         document.getElementById('send').onclick = () => {
-            let messageInput = document.getElementById('message');
-            dataChannel.send(messageInput.value);
-            document.getElementById('chat').value += `You: ${messageInput.value}\n`;
-            messageInput.value = '';
+            if (localDataChannel && localDataChannel.readyState === 'open') {
+                const messageInput = document.getElementById('message');
+                localDataChannel.send(messageInput.value);
+                document.getElementById('chat').value += `You: ${messageInput.value}\n`;
+                messageInput.value = '';
+            } else {
+                alert("Data channel is not open.");
+            }
         };
     </script>
 </body>
