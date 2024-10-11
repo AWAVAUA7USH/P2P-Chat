@@ -72,15 +72,16 @@
         <button onclick="connect()">Connect</button>
 
         <script>
-        var input = document.getElementById("messageInput");
-		input.addEventListener("keypress", function(event) {
-    		if (event.key == "Enter") {
-        		var sendButton = document.getElementById("sendbtn");
-       	 		if (sendButton) {
-      	      		sendButton.click();
-     	  		}
-    		}
-		 });
+var input = document.getElementById("messageInput");
+input.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();  // Prevent default form submission or unwanted behavior
+        var sendButton = document.getElementById("sendbtn");
+        if (sendButton) {
+            sendButton.click();
+        }
+    }
+});
 
         </script>
 
