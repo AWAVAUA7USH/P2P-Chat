@@ -26,6 +26,18 @@
     <script src="chat.js"></script>
 </body>
 </html>
+<script>
+var input = document.getElementById("input");
+input.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();  // Prevent default form submission or unwanted behavior
+        var sendButton = document.getElementById("sendbtn");
+        if (sendButton) {
+            sendButton.click();
+        }
+    }
+});
+</script>
 
 <script>
 // Create RTCPeerConnection with minimal configuration
@@ -36,7 +48,6 @@ let peerConnection = new RTCPeerConnection({
 
 let dataChannel;
 
-if (isinit){// Setup connection and SDP signaling
 async function setupConnection(initiator) {
     // Initiator creates data channel
     if (initiator) {
