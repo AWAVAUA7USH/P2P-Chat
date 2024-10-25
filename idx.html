@@ -36,7 +36,7 @@ let peerConnection = new RTCPeerConnection({
 
 let dataChannel;
 
-// Setup connection and SDP signaling
+if (isinit){// Setup connection and SDP signaling
 async function setupConnection(initiator) {
     // Initiator creates data channel
     if (initiator) {
@@ -62,7 +62,7 @@ async function setupConnection(initiator) {
         }
     };
 }
-
+}
 function setupDataChannel() {
     dataChannel.onopen = () => console.log("Data channel is open!");
     dataChannel.onmessage = event => {
