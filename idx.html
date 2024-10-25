@@ -41,6 +41,15 @@ input.addEventListener("keypress", function(event) {
 </script>
 
 <script>
+var isinit
+function fntoggle(){
+    if (isinit){
+        isinit = false
+    }
+    else{
+    	isinit = true
+    }
+}
 // Create RTCPeerConnection with minimal configuration
 let peerConnection = new RTCPeerConnection({
     iceTransportPolicy: "relay", // Local network only
@@ -109,6 +118,6 @@ async function setRemoteSDP() {
 }
 
 // Initialize connection as initiator or receiver
-setupConnection(true); // Call setupConnection(false) on the other peer
+setupConnection(isinit); // Call setupConnection(false) on the other peer
 
 </script>
