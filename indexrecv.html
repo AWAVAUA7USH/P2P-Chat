@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Minimal WebRTC Text Chat</title>
+</head>
+<body>
+    <h2>Simple WebRTC Text Chat</h2>
+
+
+    <textarea id="messages" rows="10" cols="30" readonly placeholder="Chat messages will appear here..."></textarea><br>
+
+
+    <input id="input" type="text" placeholder="Type a message">
+    <button id="sendbtn" onclick="sendMessage()">Send</button>
+
+    <h3>Signaling</h3>
+
+    <textarea id="localSDP" rows="5" cols="30" readonly placeholder="Local SDP will appear here"></textarea><br>
+    <button onclick="copySDP()">Copy Local SDP</button><br>
+
+
+    <textarea id="remoteSDP" rows="5" cols="30" placeholder="Paste Remote SDP Here"></textarea><br>
+    <button onclick="setRemoteSDP()">Set Remote SDP</button>
+
+    <script src="chat.js"></script>
+</body>
+</html>
+<script>
+var input = document.getElementById("input");
+input.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();  // Prevent default form submission or unwanted behavior
+        var sendButton = document.getElementById("sendbtn");
+        if (sendButton) {
+            sendButton.click();
+        }
+    }
+});
+</script>
+
+<script>
+// Create RTCPeerConnection with minimal configuration
+let peerConnection = new RTCPeerConnection({
+    iceTransportPolicy: "relay", // Local network only
+    iceServers: [] // No external servers
+});
+
+let dataChannel;
+
+async function setupConnection(initiator) {
+    // Initiator creates data channel
+    if (initiator) {
+        dataChannel = peerConnection.createDataChannel("chat");
+        setupDataChannel();
+    } else {
+        peerConnection.ondatachannel = event => {
+            dataChannel = event.channel;
+            setupDataChannel();
+        };
+    }
+
+    // Initiate the SDP offer/answer exchange
+    if (initiator) {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        document.getElementById("localSDP").value = JSON.stringify(peerConnection.localDescription);
+    }
+
+    peerConnection.onicecandidate = event => {
+        if (!event.candidate) {
+            console.log("ICE gathering complete");
+        }
+    };
+}
+}
+function setupDataChannel() {
+    dataChannel.onopen = () => console.log("Data channel is open!");
+    dataChannel.onmessage = event => {
+        const messages = document.getElementById("messages");
+        messages.value += "Peer: " + event.data + "\n";
+    };
+}
+
+function sendMessage() {
+    const input = document.getElementById("input");
+    const message = input.value;
+    dataChannel.send(message);
+    input.value = "";
+    document.getElementById("messages").value += "You: " + message + "\n";
+}
+
+// Copy and set remote SDP functions
+function copySDP() {
+    const sdpText = document.getElementById("localSDP").value;
+    navigator.clipboard.writeText(sdpText);
+}
+
+async function setRemoteSDP() {
+    const remoteSDP = JSON.parse(document.getElementById("remoteSDP").value);
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteSDP));
+
+    if (remoteSDP.type === "offer") {
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        document.getElementById("localSDP").value = JSON.stringify(peerConnection.localDescription);
+    }
+}
+
+// Initialize connection as initiator or receiver
+setupConnection(false); // Call setupConnection(false) on the other peer
+
+</script>
