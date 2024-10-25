@@ -44,10 +44,10 @@ input.addEventListener("keypress", function(event) {
 var initiator;
 function fntoggle(){
     if (initiator == true){
-        initiator = false;
+        var initiator = false;
     }
     else{
-        initiator = true;
+        var initiator = true;
     }
     setupConnection(initiator)
 }
