@@ -7,20 +7,19 @@
 <body>
     <h2>Simple WebRTC Text Chat</h2>
 
-    <!-- Chat display area -->
-    <button id="toggle" onclick=fntoggle()>init</button><br>
+
     <textarea id="messages" rows="10" cols="30" readonly placeholder="Chat messages will appear here..."></textarea><br>
 
-    <!-- Input area for typing messages -->
+
     <input id="input" type="text" placeholder="Type a message">
     <button id="sendbtn" onclick="sendMessage()">Send</button>
 
     <h3>Signaling</h3>
-    <!-- Local SDP for sharing -->
+
     <textarea id="localSDP" rows="5" cols="30" readonly placeholder="Local SDP will appear here"></textarea><br>
     <button onclick="copySDP()">Copy Local SDP</button><br>
 
-    <!-- Area for entering remote SDP received from peer -->
+
     <textarea id="remoteSDP" rows="5" cols="30" placeholder="Paste Remote SDP Here"></textarea><br>
     <button onclick="setRemoteSDP()">Set Remote SDP</button>
 
