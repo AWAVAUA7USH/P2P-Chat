@@ -40,7 +40,13 @@ input.addEventListener("keypress", function(event) {
 </script>
 
 <script>
-const isinit = location.hash === "#init";
+const isinitia = location.hash === "#init";
+if (isinitia){
+    isinit = true;
+}
+else{
+    isinit = false
+}
 // Create RTCPeerConnection with minimal configuration
 let peerConnection = new RTCPeerConnection({
     iceTransportPolicy: "relay", // Local network only
