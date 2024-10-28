@@ -16,19 +16,22 @@
 
     <h3>Signaling</h3>
 
-    <textarea id="local" rows="5" cols="30" readonly placeholder="Local SDP will appear here"></textarea><br>
+    <textarea id="LDescription" rows="5" cols="30" readonly placeholder="Local SDP will appear here"></textarea><br>
     <button onclick="copySDP()">Copy Local SDP</button><br>
 
 
-    <textarea id="remoteSDP" rows="5" cols="30" placeholder="Paste Remote SDP Here"></textarea><br>
+    <textarea id="RDescription" rows="5" cols="30" placeholder="Paste Remote SDP Here"></textarea><br>
     <button onclick="setRemoteSDP()">Set Remote SDP</button>
 
     <script src="chat.js"></script>
 </body>
 </html>
 <script>
-async function makeCall() {
-const offerta = await peerConnection.createOffer();
-await peerConnection.setLocalDesription(offer);
-
+async function makeCallinit() {
+    const config = {"iceServers": []}
+    const peerconnection = new RTCPeerCOnnection(config);
+    
+    const offerta = await peerConnection.createOffer();
+	await peerConnection.setLocalDesription(offer);
+}
 </script>
