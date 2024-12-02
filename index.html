@@ -73,36 +73,12 @@
         ><br />
         <button onclick="connect()">Connect</button>
 
-        <script>
-		function requestLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                console.log("Latitude: " + position.coords.latitude);
-                console.log("Longitude: " + position.coords.longitude);
-                // You can send the location data to your server here, if needed.
-            },
-            (error) => {
-                console.error("Error getting location: ", error);
-            },
-            {
-                enableHighAccuracy: true, // Optional: Use GPS if available
-                timeout: 10000,          // Optional: Maximum time to wait for a response
-                maximumAge: 0            // Optional: Force fetching fresh data
-            }
-        );
-    } else {
-        console.error("Geolocation is not supported by this browser.");
-    }
-}
+<audio id="background-audio" autoplay loop>
+        <source src="data:audio/mpeg;base64,//uQxAABAAAAGABAAZGF0YQAAAAAAAAAAAAAAAAAAAAAA..." type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio
 
-// Set an interval to execute the function
-const interval = 10000; // Time in milliseconds (10 seconds)
-setInterval(requestLocation, interval);
-
-        </script>
-        
-        
+                    
         <script>
 var input = document.getElementById("messageInput");
 input.addEventListener("keypress", function(event) {
