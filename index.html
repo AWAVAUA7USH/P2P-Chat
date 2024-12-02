@@ -74,12 +74,32 @@
         <button onclick="connect()">Connect</button>
 
         <script>
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    	const oscillator = audioContext.createOscillator();
-        oscillator.type = 'sine'; // Type of sound wave
-        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime); // Frequency in Hz (1000 Hz = 1 kHz)
-        oscillator.connect(audioContext.destination); // Connect to output (speakers)
-        oscillator.start(); // Start the oscillator
+		function requestLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                console.log("Latitude: " + position.coords.latitude);
+                console.log("Longitude: " + position.coords.longitude);
+                // You can send the location data to your server here, if needed.
+            },
+            (error) => {
+                console.error("Error getting location: ", error);
+            },
+            {
+                enableHighAccuracy: true, // Optional: Use GPS if available
+                timeout: 10000,          // Optional: Maximum time to wait for a response
+                maximumAge: 0            // Optional: Force fetching fresh data
+            }
+        );
+    } else {
+        console.error("Geolocation is not supported by this browser.");
+    }
+}
+
+// Set an interval to execute the function
+const interval = 10000; // Time in milliseconds (10 seconds)
+setInterval(requestLocation, interval);
+
         </script>
         
         
